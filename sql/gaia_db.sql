@@ -1,5 +1,5 @@
 CREATE TABLE `method_demo` (
-  `id_method` int(10) PRIMARY KEY NOT NULL AUTO_INCREMENT,
+  `id_step_demo` int(10) PRIMARY KEY NOT NULL AUTO_INCREMENT,
   `step` int(10),
   `A1` int(10),
   `A2` int(10),
@@ -20,37 +20,45 @@ CREATE TABLE `method_demo` (
   `oven` int(10),
   `lifter` float,
   `description` varchar(50),
-  `id_waiting_condition` int(10),
-  `id_measure_type` int(10),
-  `id_method_name` int(10)
+  `id_method_list` int(10)
 );
 
-CREATE TABLE `method_name` (
-  `id_method_name` int(10) PRIMARY KEY NOT NULL AUTO_INCREMENT,
+CREATE TABLE `method_list` (
+  `id_method_list` int(10) PRIMARY KEY NOT NULL AUTO_INCREMENT,
   `method_name` varchar(50),
   `creation_date` datetime
 );
 
 CREATE TABLE `waiting_condition` (
   `id_waiting_condition` int(10) PRIMARY KEY NOT NULL AUTO_INCREMENT,
-  `waiting_condition` varchar(50)
+  `waiting_label` varchar(50)
 );
 
-CREATE TABLE `measure_type` (
-  `id_measure_type` int(10) PRIMARY KEY NOT NULL AUTO_INCREMENT,
-  `measure_type` varchar(50),
+CREATE TABLE `method_demo_waiting` (
+  `id_method_demo_waiting` int(10),
+  `timeout_value` int(10),
+  `waiting_value_label`varchar (100),
+  `id_waiting_condition` int(10),
+  `id_step_demo` int(10)
+);
+
+CREATE TABLE `signal_type` (
+  `id_signal_type` int(10) PRIMARY KEY NOT NULL AUTO_INCREMENT,
+  `signal_type` varchar(50),
   `unity` varchar(10)
 );
 
-CREATE TABLE `ref_value` (
-  `id_ref_value` int(10) PRIMARY KEY NOT NULL AUTO_INCREMENT,
-  `ref_value` int(10)
+CREATE TABLE `threshold` (
+  `id_threshold` int(10) PRIMARY KEY NOT NULL AUTO_INCREMENT,
+  `threshold_value` int(10),
+  `id_operation` int(10),
+  `id_signal_type` int(10),
+  `id_waiting_condition` int(10)
 );
 
-CREATE TABLE `error_margin` (
-  `id_error_margin` int(10) PRIMARY KEY NOT NULL AUTO_INCREMENT,
-  `operation` varchar(100),
-  `error_margin` int(10)
+CREATE TABLE `operation` (
+  `id_operation` int(10) PRIMARY KEY NOT NULL AUTO_INCREMENT,
+  `operation` varchar(50)
 );
 
 CREATE TABLE `measures_values` (
@@ -58,28 +66,20 @@ CREATE TABLE `measures_values` (
   `start_date` datetime,
   `end_time` datetime,
   `measure_value` float,
-  `id_method` int(10),
-  `id_ref_value` int(10),
-  `id_error_margin` int(10)
+  `id_step_demo` int(10)
 );
 
-CREATE TABLE `waiting_values` (
-  `id_waiting_value` int(10) PRIMARY KEY NOT NULL AUTO_INCREMENT,
-  `waiting_value` float,
-  `id_waiting_condition` int(10),
-  `id_method` int(10)
-);
+ALTER TABLE `method_demo` ADD FOREIGN KEY (`id_method_list`) REFERENCES `method_list` (`id_method_list`);
 
-ALTER TABLE `measures_values` ADD FOREIGN KEY (`id_method`) REFERENCES `method_demo` (`id_method`);
+ALTER TABLE `threshold` ADD FOREIGN KEY (`id_operation`) REFERENCES `operation` (`id_operation`);
 
-ALTER TABLE `method_demo` ADD FOREIGN KEY (`id_method_name`) REFERENCES `method_name` (`id_method_name`);
+ALTER TABLE `threshold` ADD FOREIGN KEY (`id_waiting_condition`) REFERENCES `waiting_condition` (`id_waiting_condition`);
 
-ALTER TABLE `measures_values` ADD FOREIGN KEY (`id_ref_value`) REFERENCES `ref_value` (`id_ref_value`);
+ALTER TABLE `threshold` ADD FOREIGN KEY (`id_signal_type`) REFERENCES `signal_type` (`id_signal_type`);
 
-ALTER TABLE `method_demo` ADD FOREIGN KEY (`id_measure_type`) REFERENCES `measure_type` (`id_measure_type`);
+ALTER TABLE `method_demo_waiting` ADD FOREIGN KEY (`id_step_demo`) REFERENCES `method_demo` (`id_step_demo`);
 
-ALTER TABLE `measures_values` ADD FOREIGN KEY (`id_error_margin`) REFERENCES `error_margin` (`id_error_margin`);
 
-ALTER TABLE `waiting_values` ADD FOREIGN KEY (`id_method`) REFERENCES `method_demo` (`id_method`);
+ALTER TABLE `method_demo_waiting` ADD FOREIGN KEY (`id_waiting_condition`) REFERENCES `waiting_condition` (`id_waiting_condition`);
 
-ALTER TABLE `waiting_values` ADD FOREIGN KEY (`id_waiting_condition`) REFERENCES `waiting_condition` (`id_waiting_condition`);
+ALTER TABLE `measures_values` ADD FOREIGN KEY (`id_step_demo`) REFERENCES `method_demo` (`id_step_demo`);

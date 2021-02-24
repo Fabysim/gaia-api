@@ -4,7 +4,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Message\ResponseInterface as Response;
 
 
-class MeasuresController
+class SignalsController
 {
 
     /**
@@ -30,7 +30,7 @@ class MeasuresController
         // 1. GET sans ID = liste
         if ($request->getMethod() == 'GET' && !isset($args['id'])) {
 
-            $sql = "SELECT * FROM `measure_type` ";
+            $sql = "SELECT * FROM `signal_type` WHERE signal_type IS NOT NULL ";
 
             $stmnt = $db->prepare($sql);
             $stmnt->execute();
@@ -50,7 +50,7 @@ class MeasuresController
                 $httpCode = 200;
                 $data['status'] = 'success';
                 $data['code'] = $httpCode;
-                $data['message'] = 'No measure_type has been created in database yet';
+                $data['message'] = 'No signal_type has been created in database yet';
                 $data['content'] = $result;
             } else {
                 $data['status'] = 'error';
@@ -61,11 +61,11 @@ class MeasuresController
 
             if (is_numeric($args['id'])) {
 
-                $sql = "SELECT * FROM measure_type WHERE id_measure_type = :id_measure_type";
+                $sql = "SELECT * FROM signal_type WHERE id_signal_type = :id_signal_type";
 
                 $stmnt = $db->prepare($sql);
 
-                $stmnt->bindValue(":id_measure_type", $args['id'], PDO::PARAM_INT);
+                $stmnt->bindValue(":id_signal_type", $args['id'], PDO::PARAM_INT);
 
                 $stmnt->execute();
 
@@ -100,18 +100,18 @@ class MeasuresController
 
             $parsedBody = $request->getParsedBody();
 
-            if (isset($parsedBody['measure_type']) && $parsedBody['measure_type'] != ''
+            if (isset($parsedBody['signal_type']) && $parsedBody['signal_type'] != ''
                 && isset($parsedBody['unity']) && $parsedBody['unity'] != ''
             ) {
 
-                $sql = "INSERT INTO `measure_type` SET                                 
-                                     measure_type = :measure_type,  
+                $sql = "INSERT INTO `signal_type` SET                                 
+                                     signal_type = :signal_type,  
                                      unity = :unity  
                 ;";
 
                 $stmnt = $db->prepare($sql);
 
-                $stmnt->bindValue(":measure_type", $parsedBody['measure_type'], PDO::PARAM_STR);
+                $stmnt->bindValue(":signal_type", $parsedBody['signal_type'], PDO::PARAM_STR);
                 $stmnt->bindValue(":unity", $parsedBody['unity'], PDO::PARAM_STR);
 
                 $stmnt->execute();
@@ -133,18 +133,18 @@ class MeasuresController
 
             if (is_numeric($args['id'])) {
 
-                if (isset($parsedBody['measure_type']) && $parsedBody['measure_type'] != '') {
+                if (isset($parsedBody['signal_type']) && $parsedBody['signal_type'] != '') {
 
-                    $sql = "UPDATE  `measure_type` 
-                            SET     `measure_type`=:measure_type,
+                    $sql = "UPDATE  `signal_type` 
+                            SET     `signal_type`=:signal_type,
                                     `unity`=:unity                                
-                            WHERE   `id_measure_type`= :id_measure_type
+                            WHERE   `id_signal_type`= :id_signal_type
                     ;";
                     $stmnt = $db->prepare($sql);
 
-                    $stmnt->bindValue(":measure_type", $parsedBody['measure_type'], PDO::PARAM_STR);
+                    $stmnt->bindValue(":signal_type", $parsedBody['signal_type'], PDO::PARAM_STR);
                     $stmnt->bindValue(":unity", $parsedBody['unity'], PDO::PARAM_STR);
-                    $stmnt->bindValue(":id_measure_type", $args['id'], PDO::PARAM_INT);
+                    $stmnt->bindValue(":id_signal_type", $args['id'], PDO::PARAM_INT);
 
                     $stmnt->execute();
 
@@ -155,7 +155,7 @@ class MeasuresController
                 } else {
                     $data['status'] = 'error';
                     $data['code'] = 'paramMissing';
-                    $data['message'] = 'Param: \'measure_type\' is mandatory';
+                    $data['message'] = 'Param: \'signal_type\' is mandatory';
                 }
             } else {
                 $data['status'] = 'error';
@@ -167,10 +167,10 @@ class MeasuresController
 
             if (is_numeric($args['id'])) {
 
-                $sql = "DELETE FROM measure_type WHERE id_measure_type= :id_measure_type";
+                $sql = "DELETE FROM signal_type WHERE id_signal_type= :id_signal_type";
 
                 $stmnt = $db->prepare($sql);
-                $stmnt->bindValue(":id_measure_type", $args['id'], PDO::PARAM_INT);
+                $stmnt->bindValue(":id_signal_type", $args['id'], PDO::PARAM_INT);
                 $stmnt->execute();
                 if ($stmnt && $stmnt->rowCount() > 0) {
                     $httpCode = 200;

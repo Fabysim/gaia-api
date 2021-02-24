@@ -30,7 +30,7 @@ class MethodsController
         // 1. GET sans ID = liste
         if ($request->getMethod() == 'GET' && !isset($args['id'])) {
 
-            $sql = "SELECT * FROM `method_name`";
+            $sql = "SELECT * FROM `method_list`";
 
             $stmnt = $db->prepare($sql);
             $stmnt->execute();
@@ -61,42 +61,46 @@ class MethodsController
 
             if (is_numeric($args['id'])) {
 
-
-                $sql = "SELECT method_name FROM method_name WHERE id_method_name = :id_method_name";
+                $sql = "SELECT method_name FROM method_list WHERE id_method_list = :id_method_list";
                 $stmnt = $db->prepare($sql);
-                $stmnt->bindValue(":id_method_name", $args['id'], PDO::PARAM_INT);
+                $stmnt->bindValue(":id_method_list", $args['id'], PDO::PARAM_INT);
                 $stmnt->execute();
 
                 if ($stmnt && $stmnt->rowCount() > 0) {
 
                     $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
                     $method_name = $result[0]['method_name'];
+                    $table_waiting =  ConfigController::table_waiting_creation($method_name);
+                    $id_step = ConfigController::id_step_creation($method_name);
 
-                    $sql = "SELECT * FROM " . $method_name." AS mt
-                            LEFT JOIN waiting_condition AS wc ON mt.id_waiting_condition = wc.id_waiting_condition
-                            LEFT JOIN measure_type AS my ON mt.id_measure_type = my.id_measure_type
-                            LEFT JOIN method_name AS mn ON mt.id_method_name = mn.id_method_name;";
+                    $sql = "SELECT * FROM " . $method_name . " AS mt
+                            INNER JOIN ".$table_waiting." AS wt ON mt.".$id_step." = wt.".$id_step." 
+                            INNER JOIN waiting_condition AS wc ON wc.id_waiting_condition = wt.id_waiting_condition
+                            LEFT JOIN threshold AS th ON th.id_waiting_condition = wc.id_waiting_condition
+                            LEFt JOIN operation AS op ON op.id_operation = th.id_operation
+                            ORDER BY mt.step;
+                    ;";
+
                     $stmnt = $db->prepare($sql);
                     $stmnt->execute();
 
-                    if ($stmnt && $stmnt->rowCount() > 0) {
+                    if ($stmnt ) {
 
                         $result_Methods = $stmnt->fetchAll(PDO::FETCH_ASSOC);
 
                         if ($result) {
-                            $sql ="SELECT MAX(step) AS step FROM ".$method_name;
+                            $sql = "SELECT MAX(step) AS step FROM " . $method_name;
                             $stmnt = $db->prepare($sql);
                             $stmnt->execute();
                             $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
                             $step_value = $result[0]['step'];
 
-
-                            if($stmnt){
+                            if ($stmnt) {
                                 $httpCode = 200;
                                 $data['status'] = 'success';
                                 $data['code'] = $httpCode;
                                 $data['content'] = $result_Methods;
-                                $data['last_step'] = $step_value;
+                                //$data['content']['last_step'] = $step_value;
                             }
 
                         } else {
@@ -105,7 +109,6 @@ class MethodsController
                             $data['content'] = 'No results found ';
                         }
                     }
-
 
                 } else {
                     $data['status'] = 'error';
@@ -126,7 +129,7 @@ class MethodsController
 
             if (isset($parsedBody['method_name']) && $parsedBody['method_name'] != '') {
 
-                $sql = "SELECT EXISTS (SELECT * FROM method_name WHERE method_name= '" . $parsedBody['method_name'] . "') AS count;";
+                $sql = "SELECT EXISTS (SELECT * FROM method_list WHERE method_name= '" . $parsedBody['method_name'] . "') AS count;";
 
                 $stmnt = $db->prepare($sql);
                 $stmnt->execute();
@@ -140,9 +143,11 @@ class MethodsController
                     $data['message'] = "Method already exists in database ";
 
                 } else {
+                    $id_table = ConfigController::id_step_creation($parsedBody['method_name']);
+
 
                     $sql = "CREATE TABLE `" . $parsedBody['method_name'] . "` (
-                  `id_method` int(10) PRIMARY KEY NOT NULL AUTO_INCREMENT,
+                  `" .$id_table. "` int(10) PRIMARY KEY NOT NULL AUTO_INCREMENT,
                   `step` int(10),
                   `A1` int(10),
                   `A2` int(10),
@@ -163,110 +168,65 @@ class MethodsController
                   `oven` int(10),
                   `lifter` float,
                   `description` varchar(50),
-                  `id_waiting_condition` int(10),
-                  `id_measure_type` int(10),
-                  `id_method_name` int(10)
+                  `id_method_list` int(10)
                   );";
 
                     $stmnt = $db->prepare($sql);
                     $stmnt->execute();
 
+
                     if ($stmnt) {
 
-                        $sql = "ALTER TABLE `" . $parsedBody['method_name'] . "` ADD FOREIGN KEY (`id_waiting_condition`) 
-                            REFERENCES `waiting_condition` (`id_waiting_condition`);";
+                        $sql = "ALTER TABLE `" . $parsedBody['method_name'] . "`ADD FOREIGN KEY (`id_method_list`) 
+                                    REFERENCES `method_list` (`id_method_list`);";
+
+                        $stmnt = $db->prepare($sql);
+                        $stmnt->execute();
+
+
+                        $table_waiting = ConfigController::table_waiting_creation($parsedBody['method_name']);
+                        $id_waiting = ConfigController::id_waiting_creation($table_waiting);
+
+
+                        $sql = "CREATE TABLE `".$table_waiting."` (
+                              `".$id_waiting."`  int(10) PRIMARY KEY NOT NULL AUTO_INCREMENT,
+                              `timeout_value` int(10),                              
+                              `waiting_value_label`varchar (100),
+                              `id_waiting_condition` int(10),
+                              `" .$id_table. "` int(10)
+                            );";
+                        $stmnt = $db->prepare($sql);
+                        $stmnt->execute();
+
+
+                        $sql = "ALTER TABLE `".$table_waiting."` ADD FOREIGN KEY (`" .$id_table. "`) REFERENCES `".$parsedBody['method_name'] ."`(`" .$id_table. "`);";
+                        $stmnt = $db->prepare($sql);
+
+
+                        $stmnt->execute();
+
+                        $sql = "ALTER TABLE `".$table_waiting."` ADD FOREIGN KEY (`id_waiting_condition`) REFERENCES `waiting_condition` (`id_waiting_condition`);";
                         $stmnt = $db->prepare($sql);
                         $stmnt->execute();
 
                         if ($stmnt) {
 
-                            $sql = "ALTER TABLE `" . $parsedBody['method_name'] . "` ADD FOREIGN KEY (`id_measure_type`) 
-                                REFERENCES `measure_type` (`id_measure_type`);";
-
-                            $stmnt = $db->prepare($sql);
-                            $stmnt->execute();
-
-                            if ($stmnt) {
-
-                                $sql = "ALTER TABLE `" . $parsedBody['method_name'] . "`ADD FOREIGN KEY (`id_method_name`) 
-                                    REFERENCES `method_name` (`id_method_name`);";
-
-                                $stmnt = $db->prepare($sql);
-                                $stmnt->execute();
-
-                                if ($stmnt) {
-
-                                    $sql = "INSERT INTO `method_name` SET 
+                            $sql = "INSERT INTO `method_list` SET 
                                         method_name = :method_name;";
 
-                                    $stmnt = $db->prepare($sql);
-                                    $stmnt->bindValue(":method_name", $parsedBody['method_name'], PDO::PARAM_STR);
-                                    $stmnt->execute();
-                                    $id_method_name = $db->lastInsertId();
+                            $stmnt = $db->prepare($sql);
+                            $stmnt->bindValue(":method_name", $parsedBody['method_name'], PDO::PARAM_STR);
+                            $stmnt->execute();
 
-                                    $sql = "INSERT INTO  `" . $parsedBody['method_name'] . "` SET     
-                                                A1 = :A1 ,
-                                                A2 = :A2 ,
-                                                A3 = :A3 ,
-                                                A4 = :A4 ,
-                                                A5 = :A5 , 
-                                                B1 = :B1 ,
-                                                B2 = :B2 ,
-                                                B3 = :B3 ,
-                                                B4 = :B4 ,
-                                                B5 = :B5 ,
-                                                C1 = :C1 ,
-                                                C2 = :C2 ,
-                                                C3 = :C3 ,
-                                                C4 = :C4 ,
-                                                C5 = :C5 ,
-                                                pump = :pump,
-                                                oven = :oven,
-                                                lifter = :lifter,
-                                                id_waiting_condition = :id_waiting_condition,
-                                                description = :description,
-                                                id_measure_type = :id_measure_type,
-                                                id_method_name= :id_method_name 
-                                                ;";
 
-                                    $stmnt = $db->prepare($sql);
-
-                                    $stmnt->bindValue(":Step", null, PDO::PARAM_INT);
-                                    $stmnt->bindValue(":A1", 0, PDO::PARAM_INT);
-                                    $stmnt->bindValue(":A2", 0, PDO::PARAM_INT);
-                                    $stmnt->bindValue(":A3", 0, PDO::PARAM_INT);
-                                    $stmnt->bindValue(":A4", 0, PDO::PARAM_INT);
-                                    $stmnt->bindValue(":A5", 0, PDO::PARAM_INT);
-                                    $stmnt->bindValue(":B1", 0, PDO::PARAM_INT);
-                                    $stmnt->bindValue(":B2", 0, PDO::PARAM_INT);
-                                    $stmnt->bindValue(":B3", 0, PDO::PARAM_INT);
-                                    $stmnt->bindValue(":B4", 0, PDO::PARAM_INT);
-                                    $stmnt->bindValue(":B5", 0, PDO::PARAM_INT);
-                                    $stmnt->bindValue(":C1", 0, PDO::PARAM_INT);
-                                    $stmnt->bindValue(":C2", 0, PDO::PARAM_INT);
-                                    $stmnt->bindValue(":C3", 0, PDO::PARAM_INT);
-                                    $stmnt->bindValue(":C4", 0, PDO::PARAM_INT);
-                                    $stmnt->bindValue(":C5", 0, PDO::PARAM_INT);
-                                    $stmnt->bindValue(":pump", 0, PDO::PARAM_INT);
-                                    $stmnt->bindValue(":oven", 0, PDO::PARAM_INT);
-                                    $stmnt->bindValue(":lifter", 0, PDO::PARAM_STR);
-                                    $stmnt->bindValue(":id_waiting_condition", null, PDO::PARAM_INT);
-                                    $stmnt->bindValue(":id_measure_type", null, PDO::PARAM_INT);
-                                    $stmnt->bindValue(":id_method_name", $id_method_name, PDO::PARAM_STR);
-                                    $stmnt->bindValue(":description", "Initial state", PDO::PARAM_STR);
-
-                                    $stmnt->execute();
-
-                                    if ($stmnt) {
-                                        $httpCode = 200;
-                                        $data['status'] = 'success';
-                                        $data['code'] = $httpCode;
-                                        $data['message'] = "Method created ";
-                                    }
-
-                                }
+                            if ($stmnt) {
+                                $httpCode = 200;
+                                $data['status'] = 'success';
+                                $data['code'] = $httpCode;
+                                $data['message'] = "Method created ";
                             }
                         }
+
 
                     } else {
                         $data['status'] = 'error';
@@ -277,7 +237,7 @@ class MethodsController
             } else {
                 $data['status'] = 'error';
                 $data['code'] = 'param error';
-                $data['content'] = 'The param \'method_name\' is required';
+                $data['content'] = 'The param \'method_list\' is required';
             }
 
 
@@ -308,7 +268,7 @@ class MethodsController
                 $lifter = (isset($parsedBody['lifter']) && $parsedBody['lifter'] != '') ? $parsedBody['lifter'] : '';
                 $id_waiting_condition = (isset($parsedBody['id_waiting_condition']) && $parsedBody['id_waiting_condition'] != '') ? $parsedBody['id_waiting_condition'] : '';
                 $waiting_period = (isset($parsedBody['waiting_period']) && $parsedBody['waiting_period'] != '') ? $parsedBody['waiting_period'] : '';
-                $measure = (isset($parsedBody['measure']) && $parsedBody['measure'] != '') ? $parsedBody['measure'] : '';
+                $signal = (isset($parsedBody['signal']) && $parsedBody['signal'] != '') ? $parsedBody['signal'] : '';
                 $description = (isset($parsedBody['description']) && $parsedBody['description'] != '') ? $parsedBody['description'] : '';
 
 
@@ -333,7 +293,7 @@ class MethodsController
                                     lifter = :lifter,
                                     id_waiting_condition = :id_waiting_condition,
                                     waiting_period = :waiting_period,
-                                    measure = :measure,
+                                    signal = :signal,
                                     description = :description 
                             WHERE   id_process= :id_process
                     ;";
@@ -360,7 +320,7 @@ class MethodsController
                 $stmnt->bindValue(":lifter", $lifter, PDO::PARAM_STR);
                 $stmnt->bindValue(":id_waiting_condition", $id_waiting_condition, PDO::PARAM_INT);
                 $stmnt->bindValue(":waiting_period", $waiting_period, PDO::PARAM_INT);
-                $stmnt->bindValue(":measure", $measure, PDO::PARAM_STR);
+                $stmnt->bindValue(":signal", $signal, PDO::PARAM_STR);
                 $stmnt->bindValue(":description", $description, PDO::PARAM_STR);
                 $stmnt->bindValue(":id_process", $args['id'], PDO::PARAM_INT);
 

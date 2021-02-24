@@ -13,9 +13,10 @@ require __DIR__ . '/../vendor/autoload.php';
 require __DIR__ . '/../src/middlewares/JsonBodyParserMiddleware.class.php';
 require __DIR__ . '/../src/controllers/Index.class.php';
 require __DIR__ . '/../src/controllers/Config.php';
-require __DIR__ . '/../src/controllers/WaitingCondition.php';
+require __DIR__ . '/../src/controllers/WaitingLabels.php';
 require __DIR__ . '/../src/controllers/Methods.php';
-require __DIR__ . '/../src/controllers/Measures.php';
+require __DIR__ . '/../src/controllers/Signals.php';
+require __DIR__ . '/../src/controllers/Operations.php';
 
 $app = AppFactory::create();
 
@@ -24,7 +25,7 @@ $app->add(new Tuupola\Middleware\JwtAuthentication([
     "header" => "Authorization",
     "secure" => true,
     "relaxed" => ["localhost","127.0.0.1","10.10.14.96"],
-    "ignore" => ["/demo","/waiting","/methods","/measures","/config"],
+    "ignore" => ["/demo","/waiting","/methods","/measures","/config","/signals","/operations"],
     "algorithm" => ["HS256"],
     "error" => function ($response, $arguments) {
         $data["status"] = "error";
@@ -77,7 +78,8 @@ $app->any('/', 'IndexController');
 $app->any('/config[/{id}]', 'ConfigController')->setName('config')->add(new JsonBodyParserMiddleware());
 $app->any('/waiting[/{id}]', 'WaitingConditionController')->setName('waiting')->add(new JsonBodyParserMiddleware());
 $app->any('/methods[/{id}]', 'MethodsController')->setName('methods')->add(new JsonBodyParserMiddleware());
-$app->any('/measures[/{id}]', 'MeasuresController')->setName('measures')->add(new JsonBodyParserMiddleware());
+$app->any('/signals[/{id}]', 'SignalsController')->setName('signals')->add(new JsonBodyParserMiddleware());
+$app->any('/operations[/{id}]', 'OperationsController')->setName('operations')->add(new JsonBodyParserMiddleware());
 
 
 $app->run();

@@ -30,7 +30,7 @@ class WaitingConditionController
         // 1. GET sans ID = liste
         if ($request->getMethod() == 'GET' && !isset($args['id'])) {
 
-            $sql = "SELECT * FROM `waiting_condition` Where waiting_condition is not null AND waiting_condition != '' ";
+            $sql = "SELECT * FROM `waiting_condition` Where waiting_label is not null AND waiting_label != '' ";
 
             $stmnt = $db->prepare($sql);
             $stmnt->execute();
@@ -50,7 +50,7 @@ class WaitingConditionController
                 $httpCode = 200;
                 $data['status'] = 'error';
                 $data['code'] = $httpCode;
-                $data['message'] = 'No waiting_condition found';
+                $data['message'] = 'No waiting_label found';
                 $data['content'] = $result;
             } else {
                 $data['status'] = 'error';
@@ -96,6 +96,7 @@ class WaitingConditionController
         } // 3. POST sans ID = Ajout d'une nouvelle entrée
         else if ($request->getMethod() == 'POST' && !isset($args['id'])) {
 
+
             $request->getHeaderLine('Content-Type');
 
             $parsedBody = $request->getParsedBody();
@@ -132,14 +133,12 @@ class WaitingConditionController
                 if (isset($parsedBody['waiting_condition']) && $parsedBody['waiting_condition'] != '') {
 
                     $sql = "UPDATE  `waiting_condition` 
-                            SET     `waiting_condition`=:waiting_condition,
-                                    `waiting_value` =:waiting_value
+                            SET     `waiting_condition`=:waiting_condition
                             WHERE   `id_waiting_condition`= :id_waiting_condition
                     ;";
                     $stmnt = $db->prepare($sql);
 
                     $stmnt->bindValue(":waiting_condition", $parsedBody['waiting_condition'], PDO::PARAM_STR);
-                    $stmnt->bindValue(":waiting_value", $parsedBody['waiting_value'], PDO::PARAM_STR);
                     $stmnt->bindValue(":id_waiting_condition", $args['id'], PDO::PARAM_INT);
 
                     $stmnt->execute();
@@ -163,7 +162,7 @@ class WaitingConditionController
 
             if (is_numeric($args['id'])) {
 
-                $sql = "DELETE FROM waiting_condition WHERE id_waiting_condition= :id_waiting_condition";
+                $sql = "DELETE FROM waiting_condition WHERE id_waiting_condition = :id_waiting_condition";
 
                 $stmnt = $db->prepare($sql);
                 $stmnt->bindValue(":id_waiting_condition", $args['id'], PDO::PARAM_INT);

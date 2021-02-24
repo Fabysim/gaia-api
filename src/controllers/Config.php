@@ -28,17 +28,15 @@ class ConfigController
         $data = array();
         $data['status'] = 'error';
 
-        $id_method_name = $parsedBody['id_method_name'];
+        $id_method_name = $parsedBody['id_method_list'];
 
-        $sql = "SELECT method_name FROM method_name WHERE id_method_name = :id_method_name;";
+        $sql = "SELECT method_name FROM method_list WHERE id_method_list = :id_method_list;";
         $stmnt = $db->prepare($sql);
-        $stmnt->bindValue(":id_method_name", $id_method_name, PDO::PARAM_INT);
+        $stmnt->bindValue(":id_method_list", $id_method_name, PDO::PARAM_INT);
         $stmnt->execute();
 
         $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
         $method_name = $result[0]['method_name'];
-
-
 
 
         // 1. GET sans ID = liste
@@ -114,17 +112,17 @@ class ConfigController
             $request->getHeaderLine('Content-Type');
             $parsedBody = $request->getParsedBody();
 
-            $sql ="SELECT MAX(step) AS step FROM ".$method_name;
+            $sql = "SELECT MAX(step) AS step FROM " . $method_name;
             $stmnt = $db->prepare($sql);
             $stmnt->execute();
             $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
             $step_value = $result[0]['step'];
 
 
-            if ($step_value === NULL){
-                $step_value  = 0;
-            }else{
-                $step_value  +=1;
+            if ($step_value === NULL) {
+                $step_value = 0;
+            } else {
+                $step_value += 1;
             }
 
             $A1 = intval((isset($parsedBody['A1']) && $parsedBody['A1'] != '') ? $parsedBody['A1'] : 0);
@@ -145,8 +143,9 @@ class ConfigController
             $pump = intval((isset($parsedBody['pump']) && $parsedBody['pump'] != '') ? $parsedBody['pump'] : 0);
             $oven = intval((isset($parsedBody['oven']) && $parsedBody['oven'] != '') ? $parsedBody['oven'] : 0);
             $lifter = floatval((isset($parsedBody['lifter']) && $parsedBody['lifter'] != '') ? $parsedBody['lifter'] : 0);
+            $timeout_value = floatval((isset($parsedBody['timeout_value']) && $parsedBody['timeout_value'] != '') ? $parsedBody['timeout_value'] : 0);
+            $id_signal_type = intval((isset($parsedBody['id_signal_type']) && $parsedBody['id_signal_type'] != '') ? $parsedBody['id_signal_type'] : 1);
             $id_waiting_condition = intval((isset($parsedBody['id_waiting_condition']) && $parsedBody['id_waiting_condition'] != '') ? $parsedBody['id_waiting_condition'] : 1);
-            $id_measure_type = intval((isset($parsedBody['id_measure_type']) && $parsedBody['id_measure_type'] != '') ? $parsedBody['id_measure_type'] : 1);
             $description = (isset($parsedBody['description']) && $parsedBody['description'] != '') ? $parsedBody['description'] : '';
 
 
@@ -170,15 +169,13 @@ class ConfigController
                                     pump = :pump,
                                     oven = :oven,
                                     lifter = :lifter,
-                                    id_waiting_condition = :id_waiting_condition,
-                                    id_method_name = :id_method_name,
-                                    id_measure_type = :id_measure_type,
+                                    id_method_list = :id_method_list,
                                     description = :description 
                                     ;";
 
             $stmnt = $db->prepare($sql);
 
-            $stmnt->bindValue(":step", $step_value , PDO::PARAM_INT);
+            $stmnt->bindValue(":step", $step_value, PDO::PARAM_INT);
             $stmnt->bindValue(":A1", $A1, PDO::PARAM_INT);
             $stmnt->bindValue(":A2", $A2, PDO::PARAM_INT);
             $stmnt->bindValue(":A3", $A3, PDO::PARAM_INT);
@@ -197,24 +194,72 @@ class ConfigController
             $stmnt->bindValue(":pump", $pump, PDO::PARAM_INT);
             $stmnt->bindValue(":oven", $oven, PDO::PARAM_INT);
             $stmnt->bindValue(":lifter", $lifter, PDO::PARAM_STR);
-            $stmnt->bindValue(":id_waiting_condition", $id_waiting_condition, PDO::PARAM_INT);
             $stmnt->bindValue(":description", $description, PDO::PARAM_STR);
-            $stmnt->bindValue(":id_measure_type", $id_measure_type, PDO::PARAM_INT);
-            $stmnt->bindValue(":id_method_name", $id_method_name, PDO::PARAM_INT);
-
+            $stmnt->bindValue(":id_method_list", $id_method_name, PDO::PARAM_INT);
 
             $stmnt->execute();
 
+            $last_step_id = $db->lastInsertId();
+
             if ($stmnt && $stmnt->rowCount() > 0) {
-                $httpCode = 200;
-                $data['status'] = 'success';
-                $data['code'] = $httpCode;
-                $data['step'] = $step_value;
-            } else {
-                $data['status'] = 'error';
-                $data['code'] = 'sqlProblem';
-                $data['content'] = 'The request could not be executed';
+
+                $table_waiting = ConfigController::table_waiting_creation($method_name);
+                $id_step = ConfigController::id_step_creation($method_name);
+
+                $sql = "SELECT waiting_label FROM waiting_condition WHERE id_waiting_condition =:id_waiting_condition;";
+                $stmnt = $db->prepare($sql);
+                $stmnt->bindValue(":id_waiting_condition", $parsedBody['id_waiting_condition'], PDO::PARAM_INT);
+                $stmnt->execute();
+                $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
+                $label = $result[0]['waiting_label'];
+
+                $sql = "SELECT signal_type FROM signal_type WHERE id_signal_type =:id_signal_type;";
+                $stmnt = $db->prepare($sql);
+                $stmnt->bindValue(":id_signal_type", $parsedBody['id_signal_type'], PDO::PARAM_INT);
+                $stmnt->execute();
+                $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
+                $signal = $result[0]['signal_type'];
+
+
+                if ($label != 'Signal threshold') {
+
+                    $waiting_value_label = $label;
+                } else {
+                    if ($parsedBody['id_operation'] === 1) {
+                        $waiting_value_label = $signal . " > " . $parsedBody['threshold_value'];
+                    } else {
+                        $waiting_value_label = $signal . " < " . $parsedBody['threshold_value'];
+                    }
+
+                }
+
+                $sql = "INSERT INTO " . $table_waiting . " SET 
+                        timeout_value =:timeout_value,
+                        id_waiting_condition =:id_waiting_condition,
+                        waiting_value_label =:waiting_value_label,
+                        " . $id_step . " =:id_step;";
+
+
+                $stmnt = $db->prepare($sql);
+                $stmnt->bindValue(":timeout_value", $timeout_value, PDO::PARAM_INT);
+                $stmnt->bindValue(":waiting_value_label", $waiting_value_label, PDO::PARAM_STR);
+                $stmnt->bindValue(":id_waiting_condition", $id_waiting_condition, PDO::PARAM_INT);
+                $stmnt->bindValue(":id_step", $last_step_id, PDO::PARAM_INT);
+
+                $stmnt->execute();
+
+                if ($stmnt) {
+                    $httpCode = 200;
+                    $data['status'] = 'success';
+                    $data['code'] = $httpCode;
+                    $data['step'] = $step_value;
+                } else {
+                    $data['status'] = 'error';
+                    $data['code'] = 'sqlProblem';
+                    $data['content'] = 'The request could not be executed';
+                }
             }
+
 
         } // 4. PUT/PATCH avec ID = Modification de l'entée X
         else if (($request->getMethod() == 'PUT' || $request->getMethod() == 'PATCH') && isset($args['id'])) {
@@ -222,12 +267,12 @@ class ConfigController
             $parsedBody = $request->getParsedBody();
 
             if (is_numeric($args['id'])) {
-                $sql = "SELECT method_name FROM method name WHERE id_method_name = :id_method_name;";
+                $sql = "SELECT method_list FROM method name WHERE id_method_list = :id_method_list;";
                 $stmnt = $db->prepare($sql);
                 $stmnt->execute();
-                $stmnt->bindValue(":id_method", $id_method_name, PDO::PARAM_INT);
+                $stmnt->bindValue(":id_method_list", $id_method_name, PDO::PARAM_INT);
                 $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
-                $method_name = $result[0]['method_name'];
+                $method_name = $result[0]['method_list'];
 
 
                 $A1 = intval((isset($parsedBody['A1']) && $parsedBody['A1'] != '') ? $parsedBody['A1'] : '');
@@ -250,8 +295,8 @@ class ConfigController
                 $lifter = floatval((isset($parsedBody['lifter']) && $parsedBody['lifter'] != '') ? $parsedBody['lifter'] : '');
                 $id_waiting_condition = intval((isset($parsedBody['id_waiting_condition']) && $parsedBody['id_waiting_condition'] != '') ? $parsedBody['id_waiting_condition'] : '');
                 $waiting_period = intval((isset($parsedBody['waiting_period']) && $parsedBody['waiting_period'] != '') ? $parsedBody['waiting_period'] : '');
-                $measure = floatval((isset($parsedBody['measure']) && $parsedBody['measure'] != '') ? $parsedBody['measure'] : '');
-                $id_measure_type = intval((isset($parsedBody['id_measure_type']) && $parsedBody['id_measure_type'] != '') ? $parsedBody['id_measure_type'] : '');
+                $signal = floatval((isset($parsedBody['signal']) && $parsedBody['signal'] != '') ? $parsedBody['signal'] : '');
+                $id_signal_type = intval((isset($parsedBody['id_signal_type']) && $parsedBody['id_signal_type'] != '') ? $parsedBody['id_signal_type'] : '');
                 $description = (isset($parsedBody['description']) && $parsedBody['description'] != '') ? $parsedBody['description'] : '';
 
 
@@ -276,10 +321,10 @@ class ConfigController
                                     lifter = :lifter,
                                     id_waiting_condition = :id_waiting_condition,
                                     waiting_period = :waiting_period,
-                                    measure = :measure,
-                                    id_measure_type = :id_measure_type,
+                                    signal = :signal,
+                                    id_signal_type = :id_signal_type,
                                     description = :description 
-                            WHERE   id_method = :id_method
+                            WHERE   id_method_list = :id_method_list
                     ;";
 
                 $stmnt = $db->prepare($sql);
@@ -304,10 +349,10 @@ class ConfigController
                 $stmnt->bindValue(":lifter", $lifter, PDO::PARAM_STR);
                 $stmnt->bindValue(":id_waiting_condition", $id_waiting_condition, PDO::PARAM_INT);
                 $stmnt->bindValue(":waiting_period", $waiting_period, PDO::PARAM_INT);
-                $stmnt->bindValue(":measure", $measure, PDO::PARAM_STR);
-                $stmnt->bindValue(":id_measure_type", $id_measure_type, PDO::PARAM_INT);
+                $stmnt->bindValue(":signal", $signal, PDO::PARAM_STR);
+                $stmnt->bindValue(":id_signal_type", $id_signal_type, PDO::PARAM_INT);
                 $stmnt->bindValue(":description", $description, PDO::PARAM_STR);
-                $stmnt->bindValue(":id_method", $args['id'], PDO::PARAM_INT);
+                $stmnt->bindValue(":id_method_list", $args['id'], PDO::PARAM_INT);
 
                 $stmnt->execute();
 
@@ -331,10 +376,10 @@ class ConfigController
 
             if (is_numeric($args['id'])) {
 
-                $sql = "DELETE FROM `" . $parsedBody['method_name'] . "` WHERE id_method = :id_method";
+                $sql = "DELETE FROM `" . $parsedBody['method_list'] . "` WHERE id_method_list = :id_method_list";
 
                 $stmnt = $db->prepare($sql);
-                $stmnt->bindValue(":id_method", $args['id'], PDO::PARAM_INT);
+                $stmnt->bindValue(":id_method_list", $args['id'], PDO::PARAM_INT);
                 $stmnt->execute();
                 if ($stmnt && $stmnt->rowCount() > 0) {
                     $httpCode = 200;
@@ -369,12 +414,27 @@ class ConfigController
             ->withStatus(200);
     }
 
-    public static function name_creation($name)
+    public static function table_waiting_creation($name)
     {
-        $new = "pr_" . $name;
+        $new = $name . "_waiting";
         return $new;
     }
 
+    public static function id_step_creation($tableName)
+    {
+
+        $id = "id_step_" . $tableName;
+
+        return $id;
+    }
+
+    public static function id_waiting_creation($tableName)
+    {
+
+        $id = "id_" . $tableName;
+
+        return $id;
+    }
 
 }
 
