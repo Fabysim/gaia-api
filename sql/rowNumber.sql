@@ -1,0 +1,1 @@
+SELECT ROW_NUMBER() OVER ( ORDER BY signal_type )num FROM `signal_type`;

@@ -146,8 +146,8 @@ class ConfigController
             $timeout_value = floatval((isset($parsedBody['timeout_value']) && $parsedBody['timeout_value'] != '') ? $parsedBody['timeout_value'] : 0);
             $id_signal_type = intval((isset($parsedBody['id_signal_type']) && $parsedBody['id_signal_type'] != '') ? $parsedBody['id_signal_type'] : 1);
             $id_waiting_condition = intval((isset($parsedBody['id_waiting_condition']) && $parsedBody['id_waiting_condition'] != '') ? $parsedBody['id_waiting_condition'] : 1);
+            $threshold_value = (isset($parsedBody['threshold_value']) && $parsedBody['threshold_value'] != '') ? $parsedBody['threshold_value'] : '';
             $description = (isset($parsedBody['description']) && $parsedBody['description'] != '') ? $parsedBody['description'] : '';
-
 
             $sql = "INSERT INTO `" . $method_name . "` SET                                 
                                     step = :step,
@@ -204,7 +204,6 @@ class ConfigController
             if ($stmnt && $stmnt->rowCount() > 0) {
 
                 $table_waiting = ConfigController::table_waiting_creation($method_name);
-                $id_step = ConfigController::id_step_creation($method_name);
 
                 $sql = "SELECT waiting_label FROM waiting_condition WHERE id_waiting_condition =:id_waiting_condition;";
                 $stmnt = $db->prepare($sql);
@@ -213,31 +212,41 @@ class ConfigController
                 $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
                 $label = $result[0]['waiting_label'];
 
-                $sql = "SELECT signal_type FROM signal_type WHERE id_signal_type =:id_signal_type;";
+                $sql = "SELECT signal_type, unity FROM signal_type WHERE id_signal_type =:id_signal_type;";
                 $stmnt = $db->prepare($sql);
                 $stmnt->bindValue(":id_signal_type", $parsedBody['id_signal_type'], PDO::PARAM_INT);
                 $stmnt->execute();
                 $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
                 $signal = $result[0]['signal_type'];
+                $unity = $result[0]['unity'];
 
+                $sql = "SELECT operation FROM operation WHERE id_operation =:id_operation;";
+                $stmnt = $db->prepare($sql);
+                $stmnt->bindValue(":id_operation", $parsedBody['id_operation'], PDO::PARAM_INT);
+                $stmnt->execute();
+                $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
+                $operation = $result[0]['operation'];
 
                 if ($label != 'Signal threshold') {
-
                     $waiting_value_label = $label;
                 } else {
-                    if ($parsedBody['id_operation'] === 1) {
-                        $waiting_value_label = $signal . " > " . $parsedBody['threshold_value'];
+                    if ($signal != NULL) {
+                        if ($operation === 'above') {
+                            $waiting_value_label = $signal . " > " . $parsedBody['threshold_value']." ".$unity;
+                        } else {
+                            $waiting_value_label = $signal . " < " . $parsedBody['threshold_value']." ".$unity;
+                        }
                     } else {
-                        $waiting_value_label = $signal . " < " . $parsedBody['threshold_value'];
+                        $waiting_value_label = "";
                     }
-
                 }
+
 
                 $sql = "INSERT INTO " . $table_waiting . " SET 
                         timeout_value =:timeout_value,
                         id_waiting_condition =:id_waiting_condition,
                         waiting_value_label =:waiting_value_label,
-                        " . $id_step . " =:id_step;";
+                        id_step =:id_step;";
 
 
                 $stmnt = $db->prepare($sql);
@@ -261,7 +270,8 @@ class ConfigController
             }
 
 
-        } // 4. PUT/PATCH avec ID = Modification de l'entée X
+        }
+        // 4. PUT/PATCH avec ID = Modification de l'entée X
         else if (($request->getMethod() == 'PUT' || $request->getMethod() == 'PATCH') && isset($args['id'])) {
 
             $parsedBody = $request->getParsedBody();

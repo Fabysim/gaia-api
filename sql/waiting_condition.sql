@@ -1,13 +1,8 @@
 INSERT INTO `waiting_condition` ( `waiting_label`) VALUES
 
 (NULL),
-
-('Stop Synthesis'),
-
-('Sterile Filter Test'),
-
-('Signal threshold'),
-
+('Fixed time'),
 ('User prompt'),
-
-('Fixed time'); 
+('Signal threshold'),
+('Sterile Filter Test'),
+('Stop Synthesis');

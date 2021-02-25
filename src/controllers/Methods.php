@@ -22,6 +22,8 @@ class MethodsController
         $uri = $request->getUri();
         $userArray = null;
         parse_str($uri->getQuery(), $userArray);
+        $request->getHeaderLine('Content-Type');
+        $parsedBody = $request->getParsedBody();
 
         $data = array();
         $data['status'] = 'error';
@@ -70,38 +72,47 @@ class MethodsController
 
                     $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
                     $method_name = $result[0]['method_name'];
-                    $table_waiting =  ConfigController::table_waiting_creation($method_name);
-                    $id_step = ConfigController::id_step_creation($method_name);
+                    $table_waiting = ConfigController::table_waiting_creation($method_name);
 
-                    $sql = "SELECT * FROM " . $method_name . " AS mt
-                            INNER JOIN ".$table_waiting." AS wt ON mt.".$id_step." = wt.".$id_step." 
+                    if (!$parsedBody['id_step']) {
+                        $sql = "SELECT * FROM " . $method_name . " AS mt
+                            INNER JOIN " . $table_waiting . " AS wt ON mt.id_step = wt.id_step
                             INNER JOIN waiting_condition AS wc ON wc.id_waiting_condition = wt.id_waiting_condition
                             LEFT JOIN threshold AS th ON th.id_waiting_condition = wc.id_waiting_condition
-                            LEFt JOIN operation AS op ON op.id_operation = th.id_operation
+                            LEFT JOIN operation AS op ON op.id_operation = th.id_operation
+                            INNER JOIN method_list AS ml ON ml.id_method_list = mt.id_method_list
                             ORDER BY mt.step;
                     ;";
+                        $stmnt = $db->prepare($sql);
 
-                    $stmnt = $db->prepare($sql);
+                    } else {
+                        $sql = "SELECT * FROM " . $method_name . " AS mt
+                            INNER JOIN " . $table_waiting . " AS wt ON mt.id_step = wt.id_step
+                            INNER JOIN waiting_condition AS wc ON wc.id_waiting_condition = wt.id_waiting_condition
+                            LEFT JOIN threshold AS th ON th.id_waiting_condition = wc.id_waiting_condition
+                            LEFT JOIN operation AS op ON op.id_operation = th.id_operation
+                            INNER JOIN method_list AS ml ON ml.id_method_list = mt.id_method_list
+                            WHERE mt.id_step =:id_step
+                            ORDER BY mt.step ;";
+
+                        $stmnt = $db->prepare($sql);
+                        $stmnt->bindValue(":id_step", $parsedBody['id_step'], PDO::PARAM_INT);
+
+                    }
+
+
                     $stmnt->execute();
 
-                    if ($stmnt ) {
+                    if ($stmnt) {
 
                         $result_Methods = $stmnt->fetchAll(PDO::FETCH_ASSOC);
 
                         if ($result) {
-                            $sql = "SELECT MAX(step) AS step FROM " . $method_name;
-                            $stmnt = $db->prepare($sql);
-                            $stmnt->execute();
-                            $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
-                            $step_value = $result[0]['step'];
 
-                            if ($stmnt) {
-                                $httpCode = 200;
-                                $data['status'] = 'success';
-                                $data['code'] = $httpCode;
-                                $data['content'] = $result_Methods;
-                                //$data['content']['last_step'] = $step_value;
-                            }
+                            $httpCode = 200;
+                            $data['status'] = 'success';
+                            $data['code'] = $httpCode;
+                            $data['content'] = $result_Methods;
 
                         } else {
                             $data['status'] = 'error';
@@ -115,6 +126,7 @@ class MethodsController
                     $data['code'] = 'sqlProblemID';
                     $data['content'] = 'Sorry, the ID ' . $args['id'] . ' does not exist';
                 }
+
             } else {
                 $data['status'] = 'error';
                 $data['code'] = 'idMustBeNumeric';
@@ -122,10 +134,6 @@ class MethodsController
             }
         } // 3. POST without ID
         else if ($request->getMethod() == 'POST' && !isset($args['id'])) {
-
-            $request->getHeaderLine('Content-Type');
-
-            $parsedBody = $request->getParsedBody();
 
             if (isset($parsedBody['method_name']) && $parsedBody['method_name'] != '') {
 
@@ -143,11 +151,9 @@ class MethodsController
                     $data['message'] = "Method already exists in database ";
 
                 } else {
-                    $id_table = ConfigController::id_step_creation($parsedBody['method_name']);
-
 
                     $sql = "CREATE TABLE `" . $parsedBody['method_name'] . "` (
-                  `" .$id_table. "` int(10) PRIMARY KEY NOT NULL AUTO_INCREMENT,
+                  `id_step` int(10) PRIMARY KEY NOT NULL AUTO_INCREMENT,
                   `step` int(10),
                   `A1` int(10),
                   `A2` int(10),
@@ -188,24 +194,24 @@ class MethodsController
                         $id_waiting = ConfigController::id_waiting_creation($table_waiting);
 
 
-                        $sql = "CREATE TABLE `".$table_waiting."` (
-                              `".$id_waiting."`  int(10) PRIMARY KEY NOT NULL AUTO_INCREMENT,
+                        $sql = "CREATE TABLE `" . $table_waiting . "` (
+                              `" . $id_waiting . "`  int(10) PRIMARY KEY NOT NULL AUTO_INCREMENT,
                               `timeout_value` int(10),                              
                               `waiting_value_label`varchar (100),
                               `id_waiting_condition` int(10),
-                              `" .$id_table. "` int(10)
+                              `id_step` int(10)
                             );";
                         $stmnt = $db->prepare($sql);
                         $stmnt->execute();
 
 
-                        $sql = "ALTER TABLE `".$table_waiting."` ADD FOREIGN KEY (`" .$id_table. "`) REFERENCES `".$parsedBody['method_name'] ."`(`" .$id_table. "`);";
+                        $sql = "ALTER TABLE `" . $table_waiting . "` ADD FOREIGN KEY (`id_step`) REFERENCES `" . $parsedBody['method_name'] . "`(`id_step`);";
                         $stmnt = $db->prepare($sql);
 
 
                         $stmnt->execute();
 
-                        $sql = "ALTER TABLE `".$table_waiting."` ADD FOREIGN KEY (`id_waiting_condition`) REFERENCES `waiting_condition` (`id_waiting_condition`);";
+                        $sql = "ALTER TABLE `" . $table_waiting . "` ADD FOREIGN KEY (`id_waiting_condition`) REFERENCES `waiting_condition` (`id_waiting_condition`);";
                         $stmnt = $db->prepare($sql);
                         $stmnt->execute();
 
@@ -241,10 +247,60 @@ class MethodsController
             }
 
 
-        } // 4. PUT/PATCH With ID
-        else if (($request->getMethod() == 'PUT' || $request->getMethod() == 'PATCH') && isset($args['id'])) {
+        } // 4. PATCH With ID
+        else if ($request->getMethod() == 'PATCH' && isset($args['id'])) {
 
-            $parsedBody = $request->getParsedBody();
+            if (is_numeric($args['id'])) {
+                $sql = "SELECT method_name FROM method_list WHERE id_method_list = :id_method_list";
+                $stmnt = $db->prepare($sql);
+                $stmnt->bindValue(":id_method_list", $args['id'], PDO::PARAM_INT);
+                $stmnt->execute();
+
+                $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
+                $method_name = $result[0]['method_name'];
+                $table_waiting = ConfigController::table_waiting_creation($method_name);
+
+                $sql = "SELECT * FROM " . $method_name . " AS mt
+                            INNER JOIN " . $table_waiting . " AS wt ON mt.id_step = wt.id_step
+                            INNER JOIN waiting_condition AS wc ON wc.id_waiting_condition = wt.id_waiting_condition
+                            LEFT JOIN threshold AS th ON th.id_waiting_condition = wc.id_waiting_condition
+                            LEFT JOIN operation AS op ON op.id_operation = th.id_operation
+                            INNER JOIN method_list AS ml ON ml.id_method_list = mt.id_method_list
+                            WHERE mt.id_step =:id_step
+                            ORDER BY mt.step ;";
+
+                $stmnt = $db->prepare($sql);
+                $stmnt->bindValue(":id_step", $parsedBody['id_step'], PDO::PARAM_INT);
+
+                $stmnt->execute();
+                if ($stmnt) {
+
+                    $result_Methods = $stmnt->fetchAll(PDO::FETCH_ASSOC);
+
+                    if ($result) {
+
+                        $httpCode = 200;
+                        $data['status'] = 'success';
+                        $data['code'] = $httpCode;
+                        $data['content'] = $result_Methods;
+
+                    } else {
+                        $data['status'] = 'error';
+                        $data['code'] = 'noEntry';
+                        $data['content'] = 'No results found ';
+                    }
+                }
+
+            } else {
+                $data['status'] = 'error';
+                $data['code'] = 'sqlProblemID';
+                $data['content'] = 'Sorry, the ID ' . $args['id'] . ' does not exist';
+
+            }
+
+
+        } // 4. bis PUT With ID
+        else if (($request->getMethod() == 'PUT') && isset($args['id'])) {
 
             if (is_numeric($args['id'])) {
 
