@@ -17,6 +17,8 @@ require __DIR__ . '/../src/controllers/WaitingLabels.php';
 require __DIR__ . '/../src/controllers/Methods.php';
 require __DIR__ . '/../src/controllers/Signals.php';
 require __DIR__ . '/../src/controllers/Operations.php';
+require __DIR__ . '/../src/controllers/Ranking.php';
+require __DIR__ . '/../src/controllers/RunMethod.php';
 
 $app = AppFactory::create();
 
@@ -25,7 +27,7 @@ $app->add(new Tuupola\Middleware\JwtAuthentication([
     "header" => "Authorization",
     "secure" => true,
     "relaxed" => ["localhost","127.0.0.1","10.10.14.96"],
-    "ignore" => ["/demo","/waiting","/methods","/measures","/config","/signals","/operations"],
+    "ignore" => ["/demo","/waiting","/methods","/measures","/config","/signals","/operations","/ranking","/run"],
     "algorithm" => ["HS256"],
     "error" => function ($response, $arguments) {
         $data["status"] = "error";
@@ -68,6 +70,7 @@ $customErrorHandler = function (
 };
 
 
+
 if ($debug === false) {
     $errorMiddleware = $app->addErrorMiddleware(true, true, true);
     $errorMiddleware->setDefaultErrorHandler($customErrorHandler);
@@ -80,6 +83,8 @@ $app->any('/waiting[/{id}]', 'WaitingConditionController')->setName('waiting')->
 $app->any('/methods[/{id}]', 'MethodsController')->setName('methods')->add(new JsonBodyParserMiddleware());
 $app->any('/signals[/{id}]', 'SignalsController')->setName('signals')->add(new JsonBodyParserMiddleware());
 $app->any('/operations[/{id}]', 'OperationsController')->setName('operations')->add(new JsonBodyParserMiddleware());
+$app->any('/ranking[/{id}]', 'RankingController')->setName('ranking')->add(new JsonBodyParserMiddleware());
+$app->any('/run[/{id}]', 'RunMethodController')->setName('run')->add(new JsonBodyParserMiddleware());
 
 
 $app->run();
