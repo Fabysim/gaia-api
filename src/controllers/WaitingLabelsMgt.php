@@ -48,9 +48,9 @@ class WaitingConditionController
                 $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
 
                 $httpCode = 200;
-                $data['status'] = 'error';
+                $data['status'] = 'success';
                 $data['code'] = $httpCode;
-                $data['message'] = 'No waiting_label found';
+                $data['message'] = 'empty table';
                 $data['content'] = $result;
             } else {
                 $data['status'] = 'error';

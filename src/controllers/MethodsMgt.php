@@ -52,7 +52,7 @@ class MethodsController
                 $httpCode = 200;
                 $data['status'] = 'success';
                 $data['code'] = $httpCode;
-                $data['message'] = 'No process created in the database yet';
+                $data['message'] = 'empty table';
                 $data['content'] = $result;
             } else {
                 $data['status'] = 'error';

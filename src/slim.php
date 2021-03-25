@@ -18,8 +18,11 @@ $customErrorHandler = function (
     );
 
     return $response
-            ->withHeader('Content-Type', 'application/json')
-            ->withStatus($exception->getCode());
+        ->withHeader('Content-Type', 'application/json')
+        ->withHeader('Access-Control-Allow-Origin', '*')
+        ->withHeader('Access-Control-Allow-Headers', '*')
+        ->withHeader('Access-Control-Allow-Methods', '*')
+        ->withStatus($exception->getCode());
 };
 
 ?>

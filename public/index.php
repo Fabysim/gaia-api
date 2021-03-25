@@ -12,13 +12,14 @@ require __DIR__ . '/../src/class/MyPDO.class.php';
 require __DIR__ . '/../vendor/autoload.php';
 require __DIR__ . '/../src/middlewares/JsonBodyParserMiddleware.class.php';
 require __DIR__ . '/../src/controllers/Index.class.php';
-require __DIR__ . '/../src/controllers/Config.php';
-require __DIR__ . '/../src/controllers/WaitingLabels.php';
-require __DIR__ . '/../src/controllers/Methods.php';
-require __DIR__ . '/../src/controllers/Signals.php';
-require __DIR__ . '/../src/controllers/Operations.php';
-require __DIR__ . '/../src/controllers/Ranking.php';
+require __DIR__ . '/../src/controllers/ConfigMethods.php';
+require __DIR__ . '/../src/controllers/WaitingLabelsMgt.php';
+require __DIR__ . '/../src/controllers/MethodsMgt.php';
+require __DIR__ . '/../src/controllers/SignalsMgt.php';
+require __DIR__ . '/../src/controllers/OperationsMgt.php';
+require __DIR__ . '/../src/controllers/RankingMgt.php';
 require __DIR__ . '/../src/controllers/RunMethod.php';
+require __DIR__ . '/../src/controllers/NetworkMgt.php';
 
 $app = AppFactory::create();
 
@@ -27,7 +28,7 @@ $app->add(new Tuupola\Middleware\JwtAuthentication([
     "header" => "Authorization",
     "secure" => true,
     "relaxed" => ["localhost","127.0.0.1","10.10.14.96"],
-    "ignore" => ["/demo","/waiting","/methods","/measures","/config","/signals","/operations","/ranking","/run"],
+    "ignore" => ["/demo","/waiting","/methods","/measures","/config","/signals","/operations","/ranking","/run","/network"],
     "algorithm" => ["HS256"],
     "error" => function ($response, $arguments) {
         $data["status"] = "error";
@@ -85,6 +86,7 @@ $app->any('/signals[/{id}]', 'SignalsController')->setName('signals')->add(new J
 $app->any('/operations[/{id}]', 'OperationsController')->setName('operations')->add(new JsonBodyParserMiddleware());
 $app->any('/ranking[/{id}]', 'RankingController')->setName('ranking')->add(new JsonBodyParserMiddleware());
 $app->any('/run[/{id}]', 'RunMethodController')->setName('run')->add(new JsonBodyParserMiddleware());
+$app->any('/network[/{id}]', 'NetworkController')->setName('network')->add(new JsonBodyParserMiddleware());
 
 
 $app->run();
