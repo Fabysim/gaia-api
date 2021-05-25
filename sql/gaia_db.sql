@@ -26,7 +26,8 @@ CREATE TABLE `method_demo` (
 CREATE TABLE `method_list` (
   `id_method_list` int(10) PRIMARY KEY NOT NULL AUTO_INCREMENT,
   `method_name` varchar(50),
-  `creation_date` datetime DEFAULT (now())
+  `creation_date` datetime DEFAULT (now()),
+  `processed` boolean DEFAULT (false)
 );
 
 CREATE TABLE `waiting_condition` (
@@ -48,7 +49,7 @@ CREATE TABLE `signal_type` (
   `unity` varchar(10)
 );
 
-CREATE TABLE demo_threshold (
+CREATE TABLE `threshold_demo` (
   `id_threshold` int(10) PRIMARY KEY NOT NULL AUTO_INCREMENT,
   `threshold_value` int(10),
   `id_operation` int(10),
@@ -69,11 +70,18 @@ CREATE TABLE `measures_values` (
   `id_step_demo` int(10)
 );
 
+CREATE TABLE `network` (
+  `id_network` int(10) PRIMARY KEY NOT NULL AUTO_INCREMENT,
+  `network_name` varchar(50),
+  `IP` varchar(50),
+  `port` int(5)
+);
+
 ALTER TABLE `method_demo` ADD FOREIGN KEY (`id_method_list`) REFERENCES `method_list` (`id_method_list`);
 
-ALTER TABLE demo_threshold ADD FOREIGN KEY (`id_operation`) REFERENCES `operation` (`id_operation`);
+ALTER TABLE `threshold_demo` ADD FOREIGN KEY (`id_operation`) REFERENCES `operation` (`id_operation`);
 
-ALTER TABLE demo_threshold ADD FOREIGN KEY (`id_signal_type`) REFERENCES `signal_type` (`id_signal_type`);
+ALTER TABLE `threshold_demo` ADD FOREIGN KEY (`id_signal_type`) REFERENCES `signal_type` (`id_signal_type`);
 
 ALTER TABLE `method_demo_waiting` ADD FOREIGN KEY (`id_step_demo`) REFERENCES `method_demo` (`id_step_demo`);
 
@@ -81,4 +89,4 @@ ALTER TABLE `method_demo_waiting` ADD FOREIGN KEY (`id_waiting_condition`) REFER
 
 ALTER TABLE `measures_values` ADD FOREIGN KEY (`id_step_demo`) REFERENCES `method_demo` (`id_step_demo`);
 
-ALTER TABLE demo_threshold ADD FOREIGN KEY (`id_method_waiting_condition`) REFERENCES `method_demo_waiting` (`id_method_waiting_condition`);
+ALTER TABLE `threshold_demo` ADD FOREIGN KEY (`id_method_waiting_condition`) REFERENCES `method_demo_waiting` (`id_method_waiting_condition`);
